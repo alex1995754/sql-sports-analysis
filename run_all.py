@@ -1,14 +1,51 @@
 import os
-import pymysql
 import subprocess
+import sys
 
-# Настройка подключения к базе данных
-db = pymysql.connect(
-    host="localhost",
-    user="root",  # Замените на вашего пользователя MySQL
-    password="12345"  # Замените на ваш пароль MySQL
-)
-cursor = db.cursor()
+# Проверка и установка модулей
+required_modules = ['pymysql', 'faker']
+try:
+    import pymysql  # Проверяем наличие pymysql
+    from faker import Faker  # Проверяем наличие faker
+except ImportError:
+    print("Устанавливаем необходимые зависимости...")
+    subprocess.check_call([sys.executable, '-m', 'pip', 'install', *required_modules])
+
+# Импортируем модули после установки
+import pymysql
+from faker import Faker
+
+# Функция для установки зависимости (на случай, если другой пользователь запустит скрипт)
+def install_and_import(module_name):
+    try:
+        __import__(module_name)
+    except ImportError:
+        print(f"Устанавливается модуль {module_name}...")
+        subprocess.check_call([sys.executable, '-m', 'pip', 'install', module_name])
+        print(f"Модуль {module_name} успешно установлен.")
+
+# Убеждаемся, что все зависимости установлены
+for module in required_modules:
+    install_and_import(module)
+
+# Запрос данных для подключения к базе данных
+host = input("Введите хост (например, localhost): ").strip()
+user = input("Введите имя пользователя MySQL: ").strip()
+password = input("Введите пароль MySQL: ").strip()
+
+# Подключение к базе данных
+try:
+    db = pymysql.connect(
+        host=host,
+        user=user,
+        password=password
+    )
+    cursor = db.cursor()
+    print("\nУспешное подключение к MySQL!\n")
+except Exception as e:
+    print(f"Ошибка подключения к MySQL: {e}")
+    input("Нажмите Enter, чтобы выйти.")
+    sys.exit(1)
 
 # Пути к файлам
 create_tables_path = os.path.join("sql_scripts", "create_tables.sql")
@@ -47,3 +84,7 @@ except Exception as e:
 # Закрываем соединение
 cursor.close()
 db.close()
+
+# Финальное сообщение
+print("\nПрограмма завершена. Нажмите Enter, чтобы закрыть окно.")
+input()
