@@ -4,12 +4,28 @@ import sys
 
 # Проверка и установка модулей
 required_modules = ['pymysql', 'faker']
-try:
-    import pymysql  # Проверяем наличие pymysql
-    from faker import Faker  # Проверяем наличие faker
-except ImportError:
-    print("Устанавливаем необходимые зависимости...")
-    subprocess.check_call([sys.executable, '-m', 'pip', 'install', *required_modules])
+
+# Функция для проверки наличия модуля
+def is_module_installed(module_name):
+    try:
+        __import__(module_name)
+        return True
+    except ImportError:
+        return False
+
+# Проверка всех модулей и составление списка отсутствующих
+missing_modules = [module for module in required_modules if not is_module_installed(module)]
+
+if missing_modules:
+    print(f"Следующие модули отсутствуют: {', '.join(missing_modules)}.")
+    consent = input("Хотите установить их? (y/n): ").strip().lower()
+    if consent == 'y':
+        print("Устанавливаем модули...")
+        subprocess.check_call([sys.executable, '-m', 'pip', 'install', *missing_modules])
+        print("Все отсутствующие модули успешно установлены.")
+    else:
+        print("Необходимые модули не установлены. Завершаем программу.")
+        sys.exit(1)
 
 # Импортируем модули после установки
 import pymysql
@@ -28,24 +44,31 @@ def install_and_import(module_name):
 for module in required_modules:
     install_and_import(module)
 
-# Запрос данных для подключения к базе данных
-host = input("Введите хост (например, localhost): ").strip()
-user = input("Введите имя пользователя MySQL: ").strip()
-password = input("Введите пароль MySQL: ").strip()
+# Функция для подключения к базе данных с повторным запросом данных
+def connect_to_database():
+    while True:
+        host = input("Введите хост (например, localhost): ").strip()
+        user = input("Введите имя пользователя MySQL: ").strip()
+        password = input("Введите пароль MySQL: ").strip()
+
+        try:
+            db = pymysql.connect(
+                host=host,
+                user=user,
+                password=password
+            )
+            print("\nУспешное подключение к MySQL!\n")
+            return db
+        except Exception as e:
+            print(f"Ошибка подключения к MySQL: {e}")
+            retry = input("Хотите повторить попытку? (y/n): ").strip().lower()
+            if retry != 'y':
+                print("Завершаем программу.")
+                sys.exit(1)
 
 # Подключение к базе данных
-try:
-    db = pymysql.connect(
-        host=host,
-        user=user,
-        password=password
-    )
-    cursor = db.cursor()
-    print("\nУспешное подключение к MySQL!\n")
-except Exception as e:
-    print(f"Ошибка подключения к MySQL: {e}")
-    input("Нажмите Enter, чтобы выйти.")
-    sys.exit(1)
+db = connect_to_database()
+cursor = db.cursor()
 
 # Пути к файлам
 create_tables_path = os.path.join("sql_scripts", "create_tables.sql")
@@ -74,9 +97,13 @@ except Exception as e:
 # Шаг 3: Открытие файла queries.sql с помощью стандартной программы
 try:
     if os.name == 'nt':  # Для Windows
-        os.startfile(queries_sql_path)
+        subprocess.Popen(
+            ['start', '', queries_sql_path], shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        )
     elif os.name == 'posix':  # Для Linux/macOS
-        subprocess.run(['xdg-open', queries_sql_path])  # Для Linux
+        subprocess.Popen(
+            ['xdg-open', queries_sql_path], start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        )
     print(f"Файл {queries_sql_path} открыт для просмотра.")
 except Exception as e:
     print(f"Не удалось открыть файл {queries_sql_path}: {e}")
